@@ -34,20 +34,18 @@ type HTTPMetricsDownloader struct {
 // PrometheusCollector struct
 type PrometheusCollector struct {
 	Downloader MetricsDownloader
-	cache      *CacheType
 }
 
 // New return an instance of PrometheusCollector
 func New() plugin.Collector {
 	return &PrometheusCollector{
 		Downloader: HTTPMetricsDownloader{},
-		cache:      NewCache(),
 	}
 }
 
-func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]metricWithType, error) {
+func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]plugin.Metric, error) {
 	var err error
-	metrics := []metricWithType{}
+	var metrics []plugin.Metric
 	currentTime := time.Now()
 
 	if len(mts) == 0 {
@@ -70,15 +68,11 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]metricWith
 		ns := mt.Namespace.Strings()
 		metricFamily := metricFamilies[ns[len(ns)-1]]
 
-		metric := metricWithType{
-			Type: metricFamily.GetType(),
-		}
+		metric := plugin.Metric{}
 		metric.Namespace = plugin.NewNamespace(ns...)
 		metric.Timestamp = currentTime
 		metric.Description = metricFamily.GetHelp()
 		metric.Version = int64(pluginVersion)
-
-		metricsBuffer := []metricWithType{}
 
 		for _, metricItem := range metricFamily.GetMetric() {
 			switch metricFamily.GetType() {
@@ -89,12 +83,10 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]metricWith
 				}
 				metric.Data = metricItem.GetGauge().GetValue()
 				metric.Tags = getTagsOfMetric(metricItem)
-				metricsBuffer = append(metricsBuffer, metric)
 
 			case dto.MetricType_COUNTER:
 				metric.Data = metricItem.GetCounter().GetValue()
 				metric.Tags = getTagsOfMetric(metricItem)
-				metricsBuffer = append(metricsBuffer, metric)
 
 			case dto.MetricType_SUMMARY:
 				summaryData, err := processSummaryMetric(metricItem)
@@ -106,54 +98,9 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]metricWith
 					tags["summary"] = key
 					metric.Tags = tags
 					metric.Data = val
-					metricsBuffer = append(metricsBuffer, metric)
-				}
-
-			}
-		}
-
-		for _, val := range MultiGroupsMetricList {
-			if val == metricFamily.GetName() {
-				switch metricFamily.GetType() {
-
-				case dto.MetricType_COUNTER:
-					var totalCount float64
-					for _, collectedMetric := range metricsBuffer {
-						totalCount += collectedMetric.Data.(float64)
-					}
-					metric.Data = totalCount
-					metric.Tags = map[string]string{"total": "TOTAL"}
-					metricsBuffer = append(metricsBuffer, metric)
-
-				case dto.MetricType_SUMMARY:
-					var totalCount, totalSum float64
-					for _, collectedMetric := range metricsBuffer {
-						switch collectedMetric.Tags["summary"] {
-						case "count":
-							totalCount += collectedMetric.Data.(float64)
-						case "sum":
-							totalSum += collectedMetric.Data.(float64)
-						}
-					}
-					metric.Data = totalCount
-					metric.Tags = map[string]string{
-						"total":   "TOTAL",
-						"summary": "count",
-					}
-					metricsBuffer = append(metricsBuffer, metric)
-					metric.Data = totalSum
-					metric.Tags = map[string]string{
-						"total":   "TOTAL",
-						"summary": "sum",
-					}
-
-					metricsBuffer = append(metricsBuffer, metric)
 				}
 			}
-		}
-
-		for _, collectedMetric := range metricsBuffer {
-			metrics = append(metrics, collectedMetric)
+			metrics = append(metrics, metric)
 		}
 	}
 	return metrics, nil
@@ -162,8 +109,7 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]metricWith
 // CollectMetrics will be called by Snap when a task that collects one of the metrics returned from this plugins
 func (c *PrometheusCollector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error) {
 	var (
-		metrics []metricWithType
-		res     []plugin.Metric
+		metrics []plugin.Metric
 		err     error
 	)
 
@@ -172,12 +118,7 @@ func (c *PrometheusCollector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metr
 		return mts, err
 	}
 
-	res, err = c._cache(metrics)
-	if err != nil {
-		return mts, err
-	}
-
-	return res, nil
+	return metrics, nil
 }
 
 func getTagsOfMetric(metric *dto.Metric) map[string]string {
@@ -263,12 +204,18 @@ func (c PrometheusCollector) collect(endpoint string) (map[string]*dto.MetricFam
 //GetMetricTypes returns metric types for testing
 func (c *PrometheusCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
 	mts := []plugin.Metric{}
-
-	for _, val := range MetricList {
+	endpoint, err := c.Downloader.GetEndpoint(cfg)
+	if err != nil {
+		return nil, err
+	}
+	metricList, err := c.collect(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range metricList {
 		mts = append(mts, plugin.Metric{
-			// /hyperpilot/goddd/*
 			Namespace: plugin.NewNamespace(nameSpacePrefix...).
-				AddStaticElement(val),
+				AddStaticElement(*val.Name),
 			Version: int64(pluginVersion),
 		})
 	}
@@ -279,11 +226,6 @@ func (c *PrometheusCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric
 //GetConfigPolicy returns a ConfigPolicyTree for testing
 func (c *PrometheusCollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-
-	err := initCache()
-	if err != nil {
-		return *policy, fmt.Errorf("Unable to call initCache() %s", err.Error())
-	}
 
 	// name space
 	configKey := nameSpacePrefix

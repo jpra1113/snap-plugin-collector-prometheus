@@ -205,7 +205,6 @@ func TestPrometheusPlugin(t *testing.T) {
 		// collector := New()
 		collector := &PrometheusCollector{
 			Downloader: &MockMetricsDownloader{},
-			cache:      NewCache(),
 		}
 
 		Convey("Prometheus collect metrics should succesfully parse test metrics", func() {
@@ -232,32 +231,6 @@ func TestPrometheusPlugin(t *testing.T) {
 				for _, metric := range metrics {
 					So(math.IsNaN(metric.Data.(float64)), ShouldBeFalse)
 				}
-			})
-
-			Convey("Prometheus collector should calculate overall sum and count for metrics in MultiGroupMetricList", func() {
-				totalTagCounter := 0
-				for _, metric := range metrics {
-					ns := strings.Join(metric.Namespace.Strings(), "/")
-					if total, _ := metric.Tags["total"]; total == "TOTAL" {
-						switch ns {
-						case "hyperpilot/prometheus/api_booking_service_request_count":
-							totalTagCounter++
-							So(metric.Data.(float64), ShouldEqual, 128264)
-						case "hyperpilot/prometheus/api_booking_service_request_latency_microseconds":
-							switch metric.Tags["summary"] {
-							case "sum":
-								totalTagCounter++
-								So(metric.Data.(float64), ShouldEqual, 355850.04806273786)
-							case "count":
-								totalTagCounter++
-								So(metric.Data.(float64), ShouldEqual, 128225)
-							}
-						}
-					}
-				}
-				Convey("Goddd collector should collect exactly 4 overall summary metrics for the test metrics", func() {
-					So(totalTagCounter, ShouldEqual, 3)
-				})
 			})
 		})
 	})
