@@ -4,13 +4,16 @@ import:
 - package: github.com/intelsdi-x/snap-plugin-lib-go
   subpackages:
   - v1/plugin
-- package: github.com/mailru/easyjson
-  subpackages:
-  - jlexer
-  - jwriter
 - package: github.com/prometheus/client_model
   subpackages:
   - go
 - package: github.com/prometheus/common
   subpackages:
   - expfmt
+- package: github.com/spf13/viper
+  version: ^1.0.0
+testImport:
+- package: github.com/smartystreets/goconvey
+  version: ^1.6.3
+  subpackages:
+  - convey

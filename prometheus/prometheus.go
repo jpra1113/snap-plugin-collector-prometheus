@@ -14,6 +14,7 @@ import (
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -22,6 +23,22 @@ var (
 	pluginVersion   = 1
 	nameSpacePrefix = []string{vendor, pluginName}
 )
+
+var prometheusEndpoint string = "http://localhost:8080/metrics"
+
+func init() {
+	// load endpoint from env
+	viper := viper.New()
+	viper.SetConfigType("json")
+	viper.SetConfigFile("/etc/snap-plugin-collector-prometheus/config")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("Cannot load config file from /etc/snap-plugin-collector-prometheus\nreason: %v\nendpoint is set to %v", err, prometheusEndpoint)
+	} else {
+		prometheusEndpoint = viper.GetString("endpoint")
+	}
+
+}
 
 type MetricsDownloader interface {
 	GetMetricsReader(url string) (io.Reader, error)
@@ -203,12 +220,9 @@ func (c PrometheusCollector) collect(endpoint string) (map[string]*dto.MetricFam
 
 //GetMetricTypes returns metric types for testing
 func (c *PrometheusCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
+
 	mts := []plugin.Metric{}
-	endpoint, err := c.Downloader.GetEndpoint(cfg)
-	if err != nil {
-		return nil, err
-	}
-	metricList, err := c.collect(endpoint)
+	metricList, err := c.collect(prometheusEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -227,12 +241,12 @@ func (c *PrometheusCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric
 func (c *PrometheusCollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
 
-	// name space
+	// namespace
 	configKey := nameSpacePrefix
 	policy.AddNewStringRule(configKey,
 		"endpoint",
 		false,
-		plugin.SetDefaultString("http://localhost:8080/metrics"))
+		plugin.SetDefaultString(prometheusEndpoint))
 
 	return *policy, nil
 }
