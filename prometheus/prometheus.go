@@ -22,6 +22,7 @@ var (
 	pluginName      = "prometheus"
 	pluginVersion   = 1
 	nameSpacePrefix = []string{vendor, pluginName}
+	configFile      = "/etc/snap-configs/snap-plugin-collector-prometheus-config"
 )
 
 var prometheusEndpoint string = "http://localhost:8080/metrics"
@@ -30,12 +31,15 @@ func init() {
 	// load endpoint from env
 	viper := viper.New()
 	viper.SetConfigType("json")
-	viper.SetConfigFile("/etc/snap-plugin-collector-prometheus/config")
+	viper.SetConfigFile(configFile)
 	err := viper.ReadInConfig()
 	if err != nil {
 		fmt.Printf("Cannot load config file from /etc/snap-plugin-collector-prometheus\nreason: %v\nendpoint is set to %v", err, prometheusEndpoint)
 	} else {
 		prometheusEndpoint = viper.GetString("endpoint")
+		if !strings.Contains(prometheusEndpoint, "/metrics") {
+			prometheusEndpoint = prometheusEndpoint + "/metrics"
+		}
 	}
 
 }
