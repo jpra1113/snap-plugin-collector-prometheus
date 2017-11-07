@@ -216,7 +216,7 @@ func TestPrometheusPlugin(t *testing.T) {
 			Convey("Prometheus collector should only store the diff of counter in a period of time", func() {
 				for _, metric := range metrics {
 					ns := strings.Join(metric.Namespace.Strings(), "/")
-					if ns == "hyperpilot/goddd/api_booking_service_request_count" {
+					if ns == "hyperpilot/prometheus/api_booking_service_request_count" {
 						switch metric.Tags["method"] {
 						case "list_cargos":
 							So(metric.Data.(float64), ShouldBeZeroValue)
