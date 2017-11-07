@@ -14,7 +14,6 @@ import (
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -26,23 +25,6 @@ var (
 )
 
 var prometheusEndpoint string = "http://localhost:8080/metrics"
-
-func init() {
-	// load endpoint from env
-	viper := viper.New()
-	viper.SetConfigType("json")
-	viper.SetConfigFile(configFile)
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("Cannot load config file from /etc/snap-plugin-collector-prometheus\nreason: %v\nendpoint is set to %v", err, prometheusEndpoint)
-	} else {
-		prometheusEndpoint = viper.GetString("endpoint")
-		if !strings.Contains(prometheusEndpoint, "/metrics") {
-			prometheusEndpoint = prometheusEndpoint + "/metrics"
-		}
-	}
-
-}
 
 type MetricsDownloader interface {
 	GetMetricsReader(url string) (io.Reader, error)
