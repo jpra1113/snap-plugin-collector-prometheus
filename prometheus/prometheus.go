@@ -20,8 +20,8 @@ import (
 var (
 	vendor          = "hyperpilot"
 	pluginName      = "prometheus"
-	pluginVersion   = 1
-	nameSpacePrefix = []string{vendor, pluginName}
+	pluginVersion   = int64(1)
+	namespacePrefix = []string{vendor, pluginName}
 	configFile      = "/etc/snap-configs/snap-plugin-collector-prometheus-config"
 )
 
@@ -78,26 +78,20 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]plugin.Met
 		return metrics, fmt.Errorf("Unable to get endpoint: " + err.Error())
 	}
 
-	metricFamilies, err := c.collect(endpoint)
+	metricFamilies, err := c.Collect(endpoint)
 	if err != nil {
 		glog.Warningf("Unable to collect metrics, skipping to next cycle. endpoint: %s, error: %s", endpoint, err.Error())
 		return metrics, nil
 	}
 
-	for idx, mt := range mts {
-		mts[idx].Timestamp = currentTime
-		ns := mt.Namespace.Strings()
-		metricFamily := metricFamilies[ns[len(ns)-1]]
-
-		metric := plugin.Metric{}
-		metric.Namespace = plugin.NewNamespace(ns...)
-		metric.Timestamp = currentTime
-		metric.Description = metricFamily.GetHelp()
-		metric.Version = int64(pluginVersion)
-
+	for _, metricFamily := range metricFamilies {
 		for _, metricItem := range metricFamily.GetMetric() {
+			metric := plugin.Metric{}
+			metric.Namespace = plugin.NewNamespace(namespacePrefix...)
+			metric.Timestamp = currentTime
+			metric.Description = metricFamily.GetHelp()
+			metric.Version = pluginVersion
 			switch metricFamily.GetType() {
-
 			case dto.MetricType_GAUGE:
 				if strings.Contains(metricFamily.GetName(), "bytes") {
 					metric.Unit = "B"
@@ -210,7 +204,7 @@ func parseMetrics(httpBody io.Reader) (map[string]*dto.MetricFamily, error) {
 	return metricFamilies, nil
 }
 
-func (c PrometheusCollector) collect(endpoint string) (map[string]*dto.MetricFamily, error) {
+func (c PrometheusCollector) Collect(endpoint string) (map[string]*dto.MetricFamily, error) {
 	reader, err := c.Downloader.GetMetricsReader(endpoint)
 	if err != nil {
 		return nil, errors.New("Unable to download metrics: " + err.Error())
@@ -222,21 +216,12 @@ func (c PrometheusCollector) collect(endpoint string) (map[string]*dto.MetricFam
 	return metricFamilies, nil
 }
 
-//GetMetricTypes returns metric types for testing
 func (c *PrometheusCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
-
 	mts := []plugin.Metric{}
-	metricList, err := c.collect(prometheusEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	for _, val := range metricList {
-		mts = append(mts, plugin.Metric{
-			Namespace: plugin.NewNamespace(nameSpacePrefix...).
-				AddStaticElement(*val.Name),
-			Version: int64(pluginVersion),
-		})
-	}
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace(namespacePrefix...),
+		Version:   pluginVersion,
+	})
 
 	return mts, nil
 }
@@ -246,7 +231,7 @@ func (c *PrometheusCollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
 
 	// namespace
-	configKey := nameSpacePrefix
+	configKey := namespacePrefix
 	policy.AddNewStringRule(configKey,
 		"endpoint",
 		false,
