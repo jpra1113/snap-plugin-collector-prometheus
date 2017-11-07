@@ -100,7 +100,7 @@ testImports:
 - name: github.com/jtolds/gls
   version: 8ddce2a84170772b95dd5d576c48d517b22cac63
 - name: github.com/smartystreets/assertions
-  version: 443d812296a84445c202c085f19e18fc238f8250
+  version: b917989671f706e432dc0e7ac908a65df1dfab72
   subpackages:
   - internal/go-render/render
   - internal/oglematchers

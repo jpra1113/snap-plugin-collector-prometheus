@@ -64,6 +64,15 @@ func New() plugin.Collector {
 	}
 }
 
+func createMetricFromFamily(currentTime time.Time, metricFamily *dto.MetricFamily) plugin.Metric {
+	return plugin.Metric{
+		Namespace:   plugin.NewNamespace(namespacePrefix...),
+		Timestamp:   currentTime,
+		Description: metricFamily.GetHelp(),
+		Version:     pluginVersion,
+	}
+}
+
 func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]plugin.Metric, error) {
 	var err error
 	var metrics []plugin.Metric
@@ -86,22 +95,21 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]plugin.Met
 
 	for _, metricFamily := range metricFamilies {
 		for _, metricItem := range metricFamily.GetMetric() {
-			metric := plugin.Metric{}
-			metric.Namespace = plugin.NewNamespace(namespacePrefix...)
-			metric.Timestamp = currentTime
-			metric.Description = metricFamily.GetHelp()
-			metric.Version = pluginVersion
 			switch metricFamily.GetType() {
 			case dto.MetricType_GAUGE:
+				metric := createMetricFromFamily(currentTime, metricFamily)
 				if strings.Contains(metricFamily.GetName(), "bytes") {
 					metric.Unit = "B"
 				}
 				metric.Data = metricItem.GetGauge().GetValue()
 				metric.Tags = getTagsOfMetric(metricItem)
+				metrics = append(metrics, metric)
 
 			case dto.MetricType_COUNTER:
+				metric := createMetricFromFamily(currentTime, metricFamily)
 				metric.Data = metricItem.GetCounter().GetValue()
 				metric.Tags = getTagsOfMetric(metricItem)
+				metrics = append(metrics, metric)
 
 			case dto.MetricType_SUMMARY:
 				summaryData, err := processSummaryMetric(metricItem)
@@ -109,15 +117,17 @@ func (c *PrometheusCollector) _collectMetrics(mts []plugin.Metric) ([]plugin.Met
 					continue
 				}
 				for key, val := range summaryData {
+					metric := createMetricFromFamily(currentTime, metricFamily)
 					tags := getTagsOfMetric(metricItem)
 					tags["summary"] = key
 					metric.Tags = tags
 					metric.Data = val
+					metrics = append(metrics, metric)
 				}
 			}
-			metrics = append(metrics, metric)
 		}
 	}
+
 	return metrics, nil
 }
 
