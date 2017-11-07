@@ -47,8 +47,10 @@ func New() plugin.Collector {
 }
 
 func createMetricFromFamily(currentTime time.Time, metricFamily *dto.MetricFamily) plugin.Metric {
+	fullNamespace := namespacePrefix
+	fullNamespace = append(fullNamespace, *metricFamily.Name)
 	return plugin.Metric{
-		Namespace:   plugin.NewNamespace(namespacePrefix...),
+		Namespace:   plugin.NewNamespace(fullNamespace...),
 		Timestamp:   currentTime,
 		Description: metricFamily.GetHelp(),
 		Version:     pluginVersion,

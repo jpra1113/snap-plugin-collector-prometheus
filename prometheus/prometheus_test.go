@@ -213,20 +213,6 @@ func TestPrometheusPlugin(t *testing.T) {
 			metrics, err := collector.CollectMetrics(metricTypes)
 			So(err, ShouldBeNil)
 
-			Convey("Prometheus collector should only store the diff of counter in a period of time", func() {
-				for _, metric := range metrics {
-					ns := strings.Join(metric.Namespace.Strings(), "/")
-					if ns == "hyperpilot/prometheus/api_booking_service_request_count" {
-						switch metric.Tags["method"] {
-						case "list_cargos":
-							So(metric.Data.(float64), ShouldBeZeroValue)
-						case "list_locations":
-							So(metric.Data.(float64), ShouldBeZeroValue)
-						}
-					}
-				}
-			})
-
 			Convey("Prometheus collector should skip NaN metric values", func() {
 				for _, metric := range metrics {
 					So(math.IsNaN(metric.Data.(float64)), ShouldBeFalse)
