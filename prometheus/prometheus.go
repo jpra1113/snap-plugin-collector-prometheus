@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
+	"github.com/jpra1113/snap-plugin-lib-go/v1/plugin"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 )
