@@ -16,6 +16,11 @@ import (
 	"github.com/prometheus/common/expfmt"
 )
 
+const (
+	PluginName    = "snap-plugin-collector-prometheus"
+	PluginVersion = 1
+)
+
 var (
 	vendor          = "hyperpilot"
 	pluginName      = "prometheus"

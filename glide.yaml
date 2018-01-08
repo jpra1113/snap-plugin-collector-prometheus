@@ -1,4 +1,4 @@
-package: github.com/hyperpilotio/snap-plugin-collector-prometheus
+package: github.com/jpra1113/snap-plugin-collector-prometheus
 import:
 - package: github.com/golang/glog
 - package: github.com/jpra1113/snap-plugin-lib-go
